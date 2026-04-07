@@ -38,6 +38,14 @@ type UserConfig struct {
 	PromptToReturnFromSubprocess bool `yaml:"promptToReturnFromSubprocess"`
 	// Keybindings
 	Keybinding KeybindingConfig `yaml:"keybinding"`
+	// Graphite stack management integration. Requires the 'gt' CLI to be installed.
+	Graphite GraphiteConfig `yaml:"graphite"`
+}
+
+type GraphiteConfig struct {
+	// If true, enable Graphite integration: show stack hierarchy in branches panel
+	// and add Graphite keybindings for stack operations.
+	Enabled bool `yaml:"enabled"`
 }
 
 type RefresherConfig struct {
@@ -1079,5 +1087,6 @@ func GetDefaultConfig() *UserConfig {
 				CommitMenu: "<c-o>",
 			},
 		},
+		Graphite: GraphiteConfig{},
 	}
 }

@@ -40,6 +40,11 @@ type Branch struct {
 	// determined yet, or up to date with base branch. (We don't need to
 	// distinguish the two, as we don't draw anything in both cases.)
 	BehindBaseBranch atomic.Int32
+
+	// Graphite stack metadata (zero values = not a Graphite-tracked branch)
+	GraphiteTracked    bool
+	GraphitePrefix     string // tree-drawing prefix from `gt ls`
+	GraphiteStackIndex int    // which stack this branch belongs to (for coloring)
 }
 
 func (b *Branch) FullRefName() string {

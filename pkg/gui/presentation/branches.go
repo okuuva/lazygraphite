@@ -38,7 +38,11 @@ func GetBranchListDisplayStrings(
 ) [][]string {
 	return lo.Map(branches, func(branch *models.Branch, _ int) []string {
 		diffed := branch.Name == diffName
-		return getBranchDisplayStrings(branch, getItemOperation(branch), fullDescription, diffed, viewWidth, tr, userConfig, worktrees, time.Now(), prs)
+		treePrefix := ""
+		if branch.GraphiteTracked {
+			treePrefix = branch.GraphitePrefix
+		}
+		return getBranchDisplayStrings(branch, getItemOperation(branch), fullDescription, diffed, viewWidth, tr, userConfig, worktrees, time.Now(), prs, treePrefix)
 	})
 }
 
@@ -54,6 +58,7 @@ func getBranchDisplayStrings(
 	worktrees []*models.Worktree,
 	now time.Time,
 	prs map[string]*models.GithubPullRequest,
+	treePrefix string,
 ) []string {
 	checkedOutByWorkTree := git_commands.CheckedOutByOtherWorktree(b, worktrees)
 	showCommitHash := fullDescription || userConfig.Gui.ShowBranchCommitHash
@@ -77,6 +82,12 @@ func getBranchDisplayStrings(
 	displayName := b.Name
 	if b.DisplayName != "" {
 		displayName = b.DisplayName
+	}
+
+	coloredTreePrefix := ""
+	if treePrefix != "" {
+		availableWidth -= utils.StringWidth(treePrefix)
+		coloredTreePrefix = colorGraphitePrefix(treePrefix)
 	}
 
 	if len(branchStatus) > 0 {
@@ -113,6 +124,9 @@ func getBranchDisplayStrings(
 	}
 
 	nameTextStyle := GetBranchTextStyle(b.Name)
+	if b.GraphiteTracked && b.GraphiteStackIndex >= 0 {
+		nameTextStyle = graphiteStackColor(b.GraphiteStackIndex)
+	}
 	if diffed {
 		nameTextStyle = theme.DiffTerminalColor
 	}
@@ -124,6 +138,9 @@ func getBranchDisplayStrings(
 		displayName = utils.TruncateWithEllipsis(displayName, len)
 	}
 	coloredName := nameTextStyle.Sprint(displayName)
+	if coloredTreePrefix != "" {
+		coloredName = coloredTreePrefix + coloredName
+	}
 	if checkedOutByWorkTree {
 		coloredName = fmt.Sprintf("%s %s", coloredName, style.FgDefault.Sprint(worktreeIcon))
 	}
@@ -269,6 +286,76 @@ func SetCustomBranches(customBranchColors map[string]string, isRegex bool) {
 		patterns: utils.SetCustomColors(customBranchColors),
 		isRegex:  isRegex,
 	}
+}
+
+// graphiteStackColor returns a color for a Graphite stack, cycling through
+// a palette similar to `gt ls`.
+var graphiteStackColors = []style.TextStyle{
+	style.FgCyan,
+	style.FgGreen,
+	style.FgYellow,
+	style.FgBlue,
+	style.FgMagenta,
+}
+
+// colorGraphitePrefix colors each character in the gt ls tree prefix.
+// Column markers (│, ◯, ◉, ┴, ┘, ┐, ┬, ├, └) advance the column counter.
+// Horizontal connectors (─) are colored by the NEXT column they connect to.
+// Each column gets its own color from the palette.
+func colorGraphitePrefix(prefix string) string {
+	// First pass: find column positions by scanning for column-marker characters.
+	// In normal lines: │(col0) space │(col1) space ◯(col2) ...
+	// In trunk lines:  ◯(col0) ─ ┴(col1) ─ ┴(col2) ─ ┘(col3) ...
+	type charInfo struct {
+		r   rune
+		col int
+	}
+
+	columnMarkers := "│◯◉○●┴┘┐┬├└┤"
+	// Count column markers to assign columns
+	chars := make([]charInfo, 0, len(prefix))
+	col := -1
+	for _, r := range prefix {
+		if strings.ContainsRune(columnMarkers, r) {
+			col++
+		}
+		chars = append(chars, charInfo{r: r, col: col})
+	}
+
+	// For horizontal connectors (─) and spaces between columns,
+	// assign them to the next column they lead to
+	// Walk backwards to propagate the next column's color to ─ chars
+	nextCol := col
+	for i := len(chars) - 1; i >= 0; i-- {
+		if strings.ContainsRune(columnMarkers, chars[i].r) {
+			nextCol = chars[i].col
+		} else if chars[i].r == '─' {
+			chars[i].col = nextCol
+		}
+	}
+
+	var result strings.Builder
+	for _, ci := range chars {
+		colColor := graphiteStackColor(ci.col)
+		switch ci.r {
+		case '◉', '●':
+			result.WriteString(colColor.Sprint("●"))
+		case '◯', '○':
+			result.WriteString(colColor.Sprint("○"))
+		case ' ':
+			result.WriteRune(' ')
+		default:
+			result.WriteString(colColor.Sprint(string(ci.r)))
+		}
+	}
+	return result.String()
+}
+
+func graphiteStackColor(stackIndex int) style.TextStyle {
+	if stackIndex < 0 {
+		return style.FgDefault
+	}
+	return graphiteStackColors[stackIndex%len(graphiteStackColors)]
 }
 
 func prColor(state string) style.TextStyle {

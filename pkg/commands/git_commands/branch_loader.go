@@ -136,6 +136,14 @@ func (self *BranchLoader) Load(reflogCommits []*models.Commit,
 		}
 	}
 
+	// Graphite integration: parse gt ls for ordering and tree visualization
+	if self.UserConfig().Graphite.Enabled {
+		entries := LoadGraphiteEntries(self.repoPaths.RepoGitDirPath())
+		if len(entries) > 0 {
+			ApplyGraphiteOrder(branches, entries)
+		}
+	}
+
 	if loadBehindCounts && self.UserConfig().Gui.ShowDivergenceFromBaseBranch != "none" {
 		onWorker(func() error {
 			return self.GetBehindBaseBranchValuesForAllBranches(branches, mainBranches, renderFunc)
