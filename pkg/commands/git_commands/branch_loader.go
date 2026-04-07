@@ -73,6 +73,8 @@ func (self *BranchLoader) Load(reflogCommits []*models.Commit,
 ) ([]*models.Branch, error) {
 	branches := self.obtainBranches()
 
+	graphiteActive := self.UserConfig().Graphite.Enabled
+
 	if self.UserConfig().Git.LocalBranchSortOrder == "recency" {
 		reflogBranches := self.obtainReflogBranches(reflogCommits)
 		// loop through reflog branches. If there is a match, merge them, then remove it from the branches and keep it in the reflog branches
@@ -81,6 +83,11 @@ func (self *BranchLoader) Load(reflogCommits []*models.Commit,
 		for _, reflogBranch := range reflogBranches {
 			for j, branch := range branches {
 				if branch.Head {
+					// With graphite, the ◉ symbol marks the current branch,
+					// so we keep the reflog recency instead of overriding with "*".
+					if graphiteActive {
+						branch.Recency = reflogBranch.Recency
+					}
 					continue
 				}
 				if strings.EqualFold(reflogBranch.Name, branch.Name) {
@@ -105,7 +112,9 @@ func (self *BranchLoader) Load(reflogCommits []*models.Commit,
 	for i, branch := range branches {
 		if branch.Head {
 			foundHead = true
-			branch.Recency = "  *"
+			if !graphiteActive {
+				branch.Recency = "  *"
+			}
 			branches = utils.Move(branches, i, 0)
 			break
 		}
@@ -115,7 +124,11 @@ func (self *BranchLoader) Load(reflogCommits []*models.Commit,
 		if err != nil {
 			return nil, err
 		}
-		branches = utils.Prepend(branches, &models.Branch{Name: info.RefName, DisplayName: info.DisplayName, Head: true, DetachedHead: info.DetachedHead, Recency: "  *"})
+		recency := "  *"
+		if graphiteActive {
+			recency = ""
+		}
+		branches = utils.Prepend(branches, &models.Branch{Name: info.RefName, DisplayName: info.DisplayName, Head: true, DetachedHead: info.DetachedHead, Recency: recency})
 	}
 
 	configBranches := self.config.Branches(self.cmd)

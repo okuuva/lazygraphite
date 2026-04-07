@@ -339,9 +339,6 @@ func ApplyGraphiteOrder(branches []*models.Branch, entries []GraphiteEntry) {
 			b.GraphiteTracked = true
 			b.GraphitePrefix = e.Prefix
 			b.GraphiteStackIndex = e.StackIndex
-			if b.Head {
-				b.Recency = ""
-			}
 		}
 	}
 
