@@ -598,6 +598,21 @@ type TranslationSet struct {
 	NoBranchesFoundAtCommitTooltip        string
 	GitFlowOptions                        string
 	NotAGitFlowBranch                     string
+	GraphiteModify                        string
+	GraphiteCreate                        string
+	GraphiteGet                           string
+	GraphitePr                            string
+	GraphiteSubmit                        string
+	GraphiteRestack                       string
+	GraphiteReword                        string
+	GraphiteSync                          string
+	GraphiteUndo                          string
+	GraphiteCheckout                      string
+	GraphiteTop                           string
+	GraphiteUp                            string
+	GraphiteDown                          string
+	GraphiteNotEnabled                    string
+	GraphiteNoBranchAtCommit              string
 	NewBranchNamePrompt                   string
 	IgnoreTracked                         string
 	ExcludeTracked                        string
@@ -1040,6 +1055,19 @@ type Actions struct {
 	StashIncludeUntrackedChanges     string
 	GitFlowFinish                    string
 	GitFlowStart                     string
+	GraphiteModify                   string
+	GraphiteCreate                   string
+	GraphiteGet                      string
+	GraphitePr                       string
+	GraphiteSubmit                   string
+	GraphiteRestack                  string
+	GraphiteReword                   string
+	GraphiteSync                     string
+	GraphiteUndo                     string
+	GraphiteCheckout                 string
+	GraphiteTop                      string
+	GraphiteUp                       string
+	GraphiteDown                     string
 	CopyToClipboard                  string
 	CopySelectedTextToClipboard      string
 	RemovePatchFromCommit            string
@@ -1725,6 +1753,21 @@ func EnglishTranslationSet() *TranslationSet {
 		NoBranchesFoundAtCommitTooltip: "No branches found at selected commit.",
 		GitFlowOptions:                 "Show git-flow options",
 		NotAGitFlowBranch:              "This does not seem to be a git flow branch",
+		GraphiteModify:                 "Commit changes to Graphite stack (gt modify)",
+		GraphiteCreate:                 "Create a new Graphite stack (gt create)",
+		GraphiteGet:                    "Sync branch with Graphite (gt get)",
+		GraphitePr:                     "Open pull request page (gt pr)",
+		GraphiteSubmit:                 "Submit stack to Graphite (gt submit)",
+		GraphiteRestack:                "Restack current branch (gt restack)",
+		GraphiteReword:                 "Reword commit message (gt modify --edit)",
+		GraphiteSync:                   "Sync all branches with Graphite (gt sync)",
+		GraphiteUndo:                   "Undo last Graphite mutation (gt undo)",
+		GraphiteCheckout:               "Checkout branch (gt checkout)",
+		GraphiteTop:                    "Checkout top of stack (gt top)",
+		GraphiteUp:                     "Go up one level in stack (gt up)",
+		GraphiteDown:                   "Go down one level in stack (gt down)",
+		GraphiteNotEnabled:             "Graphite integration is not enabled or 'gt' is not installed",
+		GraphiteNoBranchAtCommit:       "No branch points directly to this commit. This command only works for commits that are branch tips in Graphite.",
 		NewGitFlowBranchPrompt:         "New {{.branchType}} name:",
 
 		IgnoreTracked:                    "Ignore tracked file",
@@ -2121,6 +2164,19 @@ func EnglishTranslationSet() *TranslationSet {
 			StashIncludeUntrackedChanges:     "Stash all changes including untracked files",
 			GitFlowFinish:                    "git flow finish",
 			GitFlowStart:                     "git flow start",
+			GraphiteModify:                   "gt modify",
+			GraphiteCreate:                   "gt create",
+			GraphiteGet:                      "gt get",
+			GraphitePr:                       "gt pr",
+			GraphiteSubmit:                   "gt submit",
+			GraphiteRestack:                  "gt restack",
+			GraphiteReword:                   "gt modify --edit",
+			GraphiteSync:                     "gt sync",
+			GraphiteTop:                      "gt top",
+			GraphiteUndo:                     "gt undo",
+			GraphiteCheckout:                 "gt checkout",
+			GraphiteUp:                       "gt up",
+			GraphiteDown:                     "gt down",
 			CopyToClipboard:                  "Copy to clipboard",
 			CopySelectedTextToClipboard:      "Copy selected text to clipboard",
 			RemovePatchFromCommit:            "Remove patch from commit",

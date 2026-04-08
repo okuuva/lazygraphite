@@ -202,6 +202,16 @@ func loadUserConfig(configFiles []*ConfigFile, base *UserConfig, isGuiInitialize
 		}
 	}
 
+	// Resolve Graphite keymap: apply the selected preset, then overlay any
+	// user-specified keybinding.graphite overrides on top. Empty fields in
+	// keybinding.graphite (the default) fall through to the preset's value.
+	if base.Graphite.Enabled {
+		base.Keybinding.Graphite = ResolveGraphiteKeymap(
+			base.Graphite.Keymap,
+			base.Keybinding.Graphite,
+		)
+	}
+
 	return base, nil
 }
 

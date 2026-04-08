@@ -46,6 +46,11 @@ type GraphiteConfig struct {
 	// If true, enable Graphite integration: show stack hierarchy in branches panel
 	// and add Graphite keybindings for stack operations.
 	Enabled bool `yaml:"enabled"`
+	// Keymap preset. One of: 'default' | 'gt'
+	// - "default": keys match lazygit conventions (A=amend/modify, f=fetch/get, G=open PR)
+	// - "gt": keys match gt CLI command names (m=modify, g=get)
+	// Individual keys can be overridden via keybinding.graphite regardless of preset.
+	Keymap string `yaml:"keymap" jsonschema:"enum=default,enum=gt"`
 }
 
 type RefresherConfig struct {
@@ -426,6 +431,25 @@ type KeybindingConfig struct {
 	Main           KeybindingMainConfig           `yaml:"main"`
 	Submodules     KeybindingSubmodulesConfig     `yaml:"submodules"`
 	CommitMessage  KeybindingCommitMessageConfig  `yaml:"commitMessage"`
+	// Graphite keybindings. Override individual keys from the preset selected by git.graphiteKeymap.
+	Graphite KeybindingGraphiteConfig `yaml:"graphite"`
+}
+
+type KeybindingGraphiteConfig struct {
+	Modify    string `yaml:"modify"`
+	Create    string `yaml:"create"`
+	Get       string `yaml:"get"`
+	Pr        string `yaml:"pr"`
+	Submit    string `yaml:"submit"`
+	SubmitAlt string `yaml:"submit-alt"`
+	Restack   string `yaml:"restack"`
+	Reword    string `yaml:"reword"`
+	Sync      string `yaml:"sync"`
+	Undo      string `yaml:"undo"`
+	Checkout  string `yaml:"checkout"`
+	Top       string `yaml:"top"`
+	Up        string `yaml:"up"`
+	Down      string `yaml:"down"`
 }
 
 // damn looks like we have some inconsistencies here with -alt and -alt1
@@ -865,17 +889,19 @@ func GetDefaultConfig() *UserConfig {
 				ShowGraph:      "always",
 				ShowWholeGraph: false,
 			},
-			LocalBranchSortOrder:         "date",
-			RemoteBranchSortOrder:        "date",
-			SkipHookPrefix:               "WIP",
-			MainBranches:                 []string{"master", "main"},
-			AutoFetch:                    true,
-			AutoRefresh:                  true,
-			AutoForwardBranches:          "onlyMainBranches",
-			FetchAll:                     true,
-			AutoStageResolvedConflicts:   true,
-			BranchLogCmd:                 "git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --",
-			AllBranchesLogCmds:           []string{"git log --graph --all --color=always --abbrev-commit --decorate --date=relative  --pretty=medium"},
+			LocalBranchSortOrder:       "date",
+			RemoteBranchSortOrder:      "date",
+			SkipHookPrefix:             "WIP",
+			MainBranches:               []string{"master", "main"},
+			AutoFetch:                  true,
+			AutoRefresh:                true,
+			AutoForwardBranches:        "onlyMainBranches",
+			FetchAll:                   true,
+			AutoStageResolvedConflicts: true,
+			BranchLogCmd:               "git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --",
+			AllBranchesLogCmds: []string{
+				"git log --graph --all --color=always --abbrev-commit --decorate --date=relative  --pretty=medium",
+			},
 			IgnoreWhitespaceInDiffView:   false,
 			DiffContextSize:              3,
 			RenameSimilarityThreshold:    50,
@@ -1086,7 +1112,112 @@ func GetDefaultConfig() *UserConfig {
 			CommitMessage: KeybindingCommitMessageConfig{
 				CommitMenu: "<c-o>",
 			},
+			Graphite: KeybindingGraphiteConfig{},
 		},
-		Graphite: GraphiteConfig{},
+		Graphite: GraphiteConfig{
+			Keymap: "default",
+		},
 	}
+}
+
+// GraphiteDefaultKeymap returns the default keymap preset for Graphite,
+// where keys match lazygit conventions for equivalent git actions.
+func GraphiteDefaultKeymap() KeybindingGraphiteConfig {
+	return KeybindingGraphiteConfig{
+		Modify:    "A",
+		Create:    "C",
+		Get:       "f",
+		Pr:        "G",
+		Submit:    "o",
+		SubmitAlt: "P",
+		Restack:   "e",
+		Reword:    "r",
+		Sync:      "p",
+		Undo:      "z",
+		Checkout:  "<space>",
+		Top:       "<home>",
+		Up:        "<c-k>",
+		Down:      "<c-j>",
+	}
+}
+
+// GraphiteGtKeymap returns the "gt" keymap preset for Graphite,
+// where keys match gt CLI command names (m=modify, g=get, etc.).
+func GraphiteGtKeymap() KeybindingGraphiteConfig {
+	return KeybindingGraphiteConfig{
+		Modify:    "m",
+		Create:    "c",
+		Get:       "g",
+		Pr:        "p",
+		Submit:    "s",
+		SubmitAlt: "",
+		Restack:   "r",
+		Reword:    "e",
+		Sync:      "S",
+		Undo:      "U",
+		Checkout:  "<space>",
+		Top:       "t",
+		Up:        "u",
+		Down:      "d",
+	}
+}
+
+// ResolveGraphiteKeymap applies the selected preset, then overlays any
+// user-specified overrides (non-empty fields in overrides).
+func ResolveGraphiteKeymap(
+	preset string,
+	overrides KeybindingGraphiteConfig,
+) KeybindingGraphiteConfig {
+	var base KeybindingGraphiteConfig
+	switch preset {
+	case "gt":
+		base = GraphiteGtKeymap()
+	default:
+		base = GraphiteDefaultKeymap()
+	}
+
+	if overrides.Modify != "" {
+		base.Modify = overrides.Modify
+	}
+	if overrides.Create != "" {
+		base.Create = overrides.Create
+	}
+	if overrides.Get != "" {
+		base.Get = overrides.Get
+	}
+	if overrides.Pr != "" {
+		base.Pr = overrides.Pr
+	}
+	if overrides.Submit != "" {
+		base.Submit = overrides.Submit
+	}
+	if overrides.SubmitAlt != "" {
+		base.SubmitAlt = overrides.SubmitAlt
+	}
+	if overrides.Restack != "" {
+		base.Restack = overrides.Restack
+	}
+	if overrides.Reword != "" {
+		base.Reword = overrides.Reword
+	}
+	if overrides.Sync != "" {
+		base.Sync = overrides.Sync
+	}
+	if overrides.Undo != "" {
+		base.Undo = overrides.Undo
+	}
+	if overrides.Checkout != "" {
+		base.Checkout = overrides.Checkout
+	}
+	if overrides.Top != "" {
+		base.Top = overrides.Top
+	}
+	if overrides.Up != "" {
+		base.Up = overrides.Up
+	}
+	if overrides.Down != "" {
+		base.Down = overrides.Down
+	}
+
+	return base
 }

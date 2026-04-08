@@ -131,6 +131,7 @@ func (gui *Gui) resetHelpersAndControllers() {
 		Search:     searchHelper,
 		Worktree:   worktreeHelper,
 		SubCommits: helpers.NewSubCommitsHelper(helperCommon, refreshHelper),
+		Graphite:   helpers.NewGraphiteHelper(helperCommon),
 	}
 
 	gui.CustomCommandsClient = custom_commands.NewClient(
@@ -424,6 +425,18 @@ func (gui *Gui) resetHelpersAndControllers() {
 	controllers.AttachControllers(gui.State.Contexts.Snake,
 		snakeController,
 	)
+
+	if gui.UserConfig().Graphite.Enabled {
+		graphiteFilesController := controllers.NewGraphiteFilesController(common)
+		graphiteBranchesController := controllers.NewGraphiteBranchesController(common)
+		graphiteCommitsController := controllers.NewGraphiteCommitsController(common)
+		graphiteGlobalController := controllers.NewGraphiteGlobalController(common)
+
+		controllers.AttachControllers(gui.State.Contexts.Files, graphiteFilesController)
+		controllers.AttachControllers(gui.State.Contexts.Branches, graphiteBranchesController)
+		controllers.AttachControllers(gui.State.Contexts.LocalCommits, graphiteCommitsController)
+		controllers.AttachControllers(gui.State.Contexts.Global, graphiteGlobalController)
+	}
 
 	// this must come last so that we've got our click handlers defined against the context
 	listControllerFactory := controllers.NewListControllerFactory(common)
