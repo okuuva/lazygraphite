@@ -92,7 +92,7 @@ func (self *GraphiteCommitsController) pr(commit *models.Commit) error {
 
 func (self *GraphiteCommitsController) submit() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteSubmit)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.SubmitCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.SubmitCmdObj(), "Submitting...")
 }
 
 func (self *GraphiteCommitsController) graphiteDisabledReason() func() *types.DisabledReason {

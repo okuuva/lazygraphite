@@ -63,32 +63,32 @@ func (self *GraphiteGlobalController) GetKeybindings(opts types.KeybindingsOpts)
 
 func (self *GraphiteGlobalController) restack() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteRestack)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.RestackCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.RestackCmdObj(), "Restacking...")
 }
 
 func (self *GraphiteGlobalController) sync() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteSync)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.SyncCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.SyncCmdObj(), "Syncing...")
 }
 
 func (self *GraphiteGlobalController) undo() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteUndo)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.UndoCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.UndoCmdObj(), "Undoing...")
 }
 
 func (self *GraphiteGlobalController) top() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteTop)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.TopCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.TopCmdObj(), "Going to top...")
 }
 
 func (self *GraphiteGlobalController) up() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteUp)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.UpCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.UpCmdObj(), "Going up...")
 }
 
 func (self *GraphiteGlobalController) down() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteDown)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.DownCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.DownCmdObj(), "Going down...")
 }
 
 func (self *GraphiteGlobalController) graphiteDisabledReason() func() *types.DisabledReason {

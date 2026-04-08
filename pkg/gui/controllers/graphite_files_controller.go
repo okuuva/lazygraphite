@@ -58,7 +58,7 @@ func (self *GraphiteFilesController) GetKeybindings(opts types.KeybindingsOpts) 
 
 func (self *GraphiteFilesController) modify() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteModify)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.ModifyCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.ModifyCmdObj(), "Modifying...")
 }
 
 func (self *GraphiteFilesController) create() error {
@@ -68,12 +68,12 @@ func (self *GraphiteFilesController) create() error {
 
 func (self *GraphiteFilesController) submit() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteSubmit)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.SubmitCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.SubmitCmdObj(), "Submitting...")
 }
 
 func (self *GraphiteFilesController) pr() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphitePr)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.PrCmdObj(""))
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.PrCmdObj(""), "Opening PR...")
 }
 
 func (self *GraphiteFilesController) graphiteDisabledReason() func() *types.DisabledReason {

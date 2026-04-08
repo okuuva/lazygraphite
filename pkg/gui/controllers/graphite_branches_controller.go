@@ -76,22 +76,22 @@ func (self *GraphiteBranchesController) reword(branch *models.Branch) error {
 
 func (self *GraphiteBranchesController) get(branch *models.Branch) error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteGet)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.GetCmdObj(branch.Name))
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.GetCmdObj(branch.Name), "Getting branch...")
 }
 
 func (self *GraphiteBranchesController) checkout(branch *models.Branch) error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteCheckout)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.CheckoutCmdObj(branch.Name))
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.CheckoutCmdObj(branch.Name), "Checking out...")
 }
 
 func (self *GraphiteBranchesController) pr(branch *models.Branch) error {
 	self.c.LogAction(self.c.Tr.Actions.GraphitePr)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.PrCmdObj(branch.Name))
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.PrCmdObj(branch.Name), "Opening PR...")
 }
 
 func (self *GraphiteBranchesController) submit() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteSubmit)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.SubmitCmdObj())
+	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.SubmitCmdObj(), "Submitting...")
 }
 
 func (self *GraphiteBranchesController) graphiteDisabledReason() func() *types.DisabledReason {

@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jesseduffield/gocui"
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
+	"github.com/jesseduffield/lazygit/pkg/commands/oscommands"
+	"github.com/jesseduffield/lazygit/pkg/gui/types"
 	"github.com/jesseduffield/lazygit/pkg/utils"
 )
 
@@ -16,6 +19,20 @@ func NewGraphiteHelper(c *HelperCommon) *GraphiteHelper {
 	return &GraphiteHelper{
 		c: c,
 	}
+}
+
+// RunAndStream runs a gt command with output streamed to the Command Log panel
+// instead of suspending the TUI for a subprocess terminal.
+func (self *GraphiteHelper) RunAndStream(cmdObj *oscommands.CmdObj, waitingStatus string) error {
+	return self.c.WithWaitingStatus(waitingStatus, func(gocui.Task) error {
+		if err := cmdObj.StreamOutput().Run(); err != nil {
+			return fmt.Errorf(
+				self.c.Tr.GitCommandFailed, self.c.UserConfig().Keybinding.Universal.ExtrasMenu,
+			)
+		}
+		self.c.Refresh(types.RefreshOptions{Mode: types.ASYNC})
+		return nil
+	})
 }
 
 // AmendToCommit amends staged changes to the commit pointed to by a Graphite branch.
@@ -158,7 +175,7 @@ func (self *GraphiteHelper) CheckoutCommitBranch(commit *models.Commit) error {
 	}
 
 	self.c.LogAction(self.c.Tr.Actions.GraphiteCheckout)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.CheckoutCmdObj(branchAtCommit))
+	return self.RunAndStream(self.c.Git().Graphite.CheckoutCmdObj(branchAtCommit), "Checking out...")
 }
 
 // PrForCommit opens the PR page for the branch at the given commit.
@@ -172,7 +189,7 @@ func (self *GraphiteHelper) PrForCommit(commit *models.Commit) error {
 	}
 
 	self.c.LogAction(self.c.Tr.Actions.GraphitePr)
-	return self.c.RunSubprocessAndRefresh(self.c.Git().Graphite.PrCmdObj(branchAtCommit))
+	return self.RunAndStream(self.c.Git().Graphite.PrCmdObj(branchAtCommit), "Opening PR...")
 }
 
 // FindBranchAtCommit returns the name of the branch that points directly at the given commit hash.
