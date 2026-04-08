@@ -36,13 +36,28 @@ func GetBranchListDisplayStrings(
 	userConfig *config.UserConfig,
 	worktrees []*models.Worktree,
 ) [][]string {
+	// Find HEAD's graphite stack info for "above head" derivation
+	headStackIndex := -1
+	headStackPosition := -1
+	for _, b := range branches {
+		if b.Head && b.GraphiteTracked {
+			headStackIndex = b.GraphiteStackIndex
+			headStackPosition = b.GraphiteStackPosition
+			break
+		}
+	}
+
 	return lo.Map(branches, func(branch *models.Branch, _ int) []string {
 		diffed := branch.Name == diffName
 		treePrefix := ""
+		aboveHead := false
 		if branch.GraphiteTracked {
 			treePrefix = branch.GraphitePrefix
+			aboveHead = headStackIndex >= 0 &&
+				branch.GraphiteStackIndex == headStackIndex &&
+				branch.GraphiteStackPosition > headStackPosition
 		}
-		return getBranchDisplayStrings(branch, getItemOperation(branch), fullDescription, diffed, viewWidth, tr, userConfig, worktrees, time.Now(), prs, treePrefix)
+		return getBranchDisplayStrings(branch, getItemOperation(branch), fullDescription, diffed, aboveHead, viewWidth, tr, userConfig, worktrees, time.Now(), prs, treePrefix)
 	})
 }
 
@@ -52,6 +67,7 @@ func getBranchDisplayStrings(
 	itemOperation types.ItemOperation,
 	fullDescription bool,
 	diffed bool,
+	aboveHead bool,
 	viewWidth int,
 	tr *i18n.TranslationSet,
 	userConfig *config.UserConfig,
@@ -87,7 +103,7 @@ func getBranchDisplayStrings(
 	coloredTreePrefix := ""
 	if treePrefix != "" {
 		availableWidth -= utils.StringWidth(treePrefix)
-		coloredTreePrefix = colorGraphitePrefix(treePrefix)
+		coloredTreePrefix = colorGraphitePrefix(treePrefix, aboveHead)
 	}
 
 	if len(branchStatus) > 0 {
@@ -125,7 +141,11 @@ func getBranchDisplayStrings(
 
 	nameTextStyle := GetBranchTextStyle(b.Name)
 	if b.GraphiteTracked && b.GraphiteStackIndex >= 0 {
-		nameTextStyle = graphiteStackColor(b.GraphiteStackIndex)
+		if aboveHead {
+			nameTextStyle = style.FgDefault
+		} else {
+			nameTextStyle = graphiteStackColor(b.GraphiteStackIndex)
+		}
 	}
 	if diffed {
 		nameTextStyle = theme.DiffTerminalColor
@@ -301,18 +321,14 @@ var graphiteStackColors = []style.TextStyle{
 // colorGraphitePrefix colors each character in the gt ls tree prefix.
 // Column markers (│, ◯, ◉, ┴, ┘, ┐, ┬, ├, └) advance the column counter.
 // Horizontal connectors (─) are colored by the NEXT column they connect to.
-// Each column gets its own color from the palette.
-func colorGraphitePrefix(prefix string) string {
-	// First pass: find column positions by scanning for column-marker characters.
-	// In normal lines: │(col0) space │(col1) space ◯(col2) ...
-	// In trunk lines:  ◯(col0) ─ ┴(col1) ─ ┴(col2) ─ ┘(col3) ...
+// When aboveHead is true, all characters are rendered in the default (grey) color.
+func colorGraphitePrefix(prefix string, aboveHead bool) string {
 	type charInfo struct {
 		r   rune
 		col int
 	}
 
 	columnMarkers := "│◯◉○●┴┘┐┬├└┤"
-	// Count column markers to assign columns
 	chars := make([]charInfo, 0, len(prefix))
 	col := -1
 	for _, r := range prefix {
@@ -322,9 +338,6 @@ func colorGraphitePrefix(prefix string) string {
 		chars = append(chars, charInfo{r: r, col: col})
 	}
 
-	// For horizontal connectors (─) and spaces between columns,
-	// assign them to the next column they lead to
-	// Walk backwards to propagate the next column's color to ─ chars
 	nextCol := col
 	for i := len(chars) - 1; i >= 0; i-- {
 		if strings.ContainsRune(columnMarkers, chars[i].r) {
@@ -337,6 +350,9 @@ func colorGraphitePrefix(prefix string) string {
 	var result strings.Builder
 	for _, ci := range chars {
 		colColor := graphiteStackColor(ci.col)
+		if aboveHead {
+			colColor = style.FgDefault
+		}
 		switch ci.r {
 		case '◉', '●':
 			result.WriteString(colColor.Sprint("●"))

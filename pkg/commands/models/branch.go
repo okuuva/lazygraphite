@@ -42,9 +42,10 @@ type Branch struct {
 	BehindBaseBranch atomic.Int32
 
 	// Graphite stack metadata (zero values = not a Graphite-tracked branch)
-	GraphiteTracked    bool
-	GraphitePrefix     string // tree-drawing prefix from `gt ls`
-	GraphiteStackIndex int    // which stack this branch belongs to (for coloring)
+	GraphiteTracked       bool
+	GraphitePrefix        string // tree-drawing prefix from `gt ls`
+	GraphiteStackIndex    int    // color index for this branch's column
+	GraphiteStackPosition int    // depth from trunk (0 = trunk, 1 = first branch, etc.)
 }
 
 func (b *Branch) FullRefName() string {

@@ -12,9 +12,10 @@ import (
 )
 
 type GraphiteEntry struct {
-	Name       string
-	Prefix     string
-	StackIndex int // column index for coloring
+	Name          string
+	Prefix        string
+	StackIndex    int // color index for this entry's column
+	StackPosition int // depth from trunk (0 = trunk, 1 = first branch, etc.)
 }
 
 type graphiteRow struct {
@@ -25,11 +26,12 @@ type graphiteRow struct {
 
 // metroEntry is an intermediate representation for metro map generation.
 type metroEntry struct {
-	name        string
-	column      int
-	isCurrent   bool
-	isTrunk     bool
-	connectCols []int // columns of non-primary children (for branch point connectors)
+	name          string
+	column        int
+	stackPosition int   // depth from trunk (0 = trunk, 1 = first branch, etc.)
+	isCurrent     bool
+	isTrunk       bool
+	connectCols   []int // columns of non-primary children (for branch point connectors)
 }
 
 // colAllocator manages column assignment with reuse.
@@ -123,9 +125,16 @@ func LoadGraphiteEntries(repoGitDir string) []GraphiteEntry {
 		headBranch = strings.TrimSpace(string(headOut))
 	}
 
+	// Build headPath: set of branches on the path from HEAD to trunk
+	headPath := make(map[string]bool)
+	for cur := headBranch; cur != "" && cur != trunkName; cur = parentOf[cur] {
+		headPath[cur] = true
+	}
+	headPath[trunkName] = true
+
 	// DFS from trunk to build ordered metro entries
 	alloc := &colAllocator{next: 1}
-	entries := metroDFS(trunkName, 0, alloc, childrenOf, headBranch)
+	entries := metroDFS(trunkName, 0, 0, alloc, childrenOf, headBranch, headPath)
 
 	// Mark trunk
 	if len(entries) > 0 {
@@ -136,33 +145,44 @@ func LoadGraphiteEntries(repoGitDir string) []GraphiteEntry {
 	return generatePrefixes(entries)
 }
 
-// metroDFS performs a DFS to assign columns and ordering matching gt ls layout.
-// Primary child (first alphabetically) stays at parent's column.
-// Other children get new columns, allocated after primary subtree is processed
-// (allowing column reuse).
-func metroDFS(name string, col int, alloc *colAllocator,
-	childrenOf map[string][]string, headBranch string,
+// metroDFS performs a DFS to assign columns, ordering, and stack positions.
+// The child on the HEAD path is made primary (stays at parent's column),
+// falling back to the first alphabetically if no child is on the HEAD path.
+// depth tracks the position within the column (0 = trunk/root of stack).
+func metroDFS(name string, col int, depth int, alloc *colAllocator,
+	childrenOf map[string][]string, headBranch string, headPath map[string]bool,
 ) []metroEntry {
 	kids := childrenOf[name]
 	if len(kids) == 0 {
-		return []metroEntry{{name: name, column: col, isCurrent: name == headBranch}}
+		return []metroEntry{{name: name, column: col, stackPosition: depth, isCurrent: name == headBranch}}
 	}
 
-	primary := kids[0]
-	others := kids[1:]
-
-	// Process primary subtree first (appears at top of display)
-	result := metroDFS(primary, col, alloc, childrenOf, headBranch)
-
-	// Allocate columns for non-primary children (after primary frees any it used)
-	connectCols := make([]int, len(others))
-	for i := range others {
-		connectCols[i] = alloc.alloc()
+	// Pick primary child: prefer the one on HEAD's path, else first alphabetically
+	primaryIdx := 0
+	for i, kid := range kids {
+		if headPath[kid] {
+			primaryIdx = i
+			break
+		}
+	}
+	primary := kids[primaryIdx]
+	others := make([]string, 0, len(kids)-1)
+	for i, kid := range kids {
+		if i != primaryIdx {
+			others = append(others, kid)
+		}
 	}
 
-	// Process non-primary subtrees
-	for i, other := range others {
-		result = append(result, metroDFS(other, connectCols[i], alloc, childrenOf, headBranch)...)
+	// Process primary subtree first (stays at same column, depth increments)
+	result := metroDFS(primary, col, depth+1, alloc, childrenOf, headBranch, headPath)
+
+	// Allocate and process non-primary children one at a time.
+	// Non-primary children start new columns at depth 1.
+	connectCols := make([]int, 0, len(others))
+	for _, other := range others {
+		c := alloc.alloc()
+		connectCols = append(connectCols, c)
+		result = append(result, metroDFS(other, c, 1, alloc, childrenOf, headBranch, headPath)...)
 	}
 
 	// Free columns (they're closed at this branch point)
@@ -172,10 +192,11 @@ func metroDFS(name string, col int, alloc *colAllocator,
 
 	// Add this entry
 	result = append(result, metroEntry{
-		name:        name,
-		column:      col,
-		isCurrent:   name == headBranch,
-		connectCols: connectCols,
+		name:          name,
+		column:        col,
+		stackPosition: depth,
+		isCurrent:     name == headBranch,
+		connectCols:   connectCols,
 	})
 
 	return result
@@ -273,18 +294,24 @@ func generatePrefixes(entries []metroEntry) []GraphiteEntry {
 			}
 		}
 
+		// Count visible markers before this entry's column to compute color index.
+		// This must match the marker-counting logic in colorGraphitePrefix.
+		colorIndex := 0
 		for col := 0; col <= maxCol; col++ {
 			isOwnCol := col == e.column
 			inConnectRange := hasConnect && col > e.column && col <= lastConnect
 
-			// Column character
+			// Determine if this column produces a marker character
+			isMarker := false
 			if isOwnCol {
+				isMarker = true
 				if e.isCurrent {
 					prefix.WriteRune('◉')
 				} else {
 					prefix.WriteRune('◯')
 				}
 			} else if inConnectRange && connectSet[col] {
+				isMarker = true
 				if col == lastConnect {
 					prefix.WriteRune('┘')
 				} else {
@@ -293,9 +320,14 @@ func generatePrefixes(entries []metroEntry) []GraphiteEntry {
 			} else if inConnectRange {
 				prefix.WriteRune('─')
 			} else if isActive(col, i) && entries[i].column != col {
+				isMarker = true
 				prefix.WriteRune('│')
 			} else {
 				prefix.WriteRune(' ')
+			}
+
+			if col < e.column && isMarker {
+				colorIndex++
 			}
 
 			// Separator after column character
@@ -314,9 +346,10 @@ func generatePrefixes(entries []metroEntry) []GraphiteEntry {
 		}
 
 		result[i] = GraphiteEntry{
-			Name:       e.name,
-			Prefix:     prefix.String(),
-			StackIndex: e.column,
+			Name:          e.name,
+			Prefix:        prefix.String(),
+			StackIndex:    colorIndex,
+			StackPosition: e.stackPosition,
 		}
 	}
 
@@ -339,6 +372,7 @@ func ApplyGraphiteOrder(branches []*models.Branch, entries []GraphiteEntry) {
 			b.GraphiteTracked = true
 			b.GraphitePrefix = e.Prefix
 			b.GraphiteStackIndex = e.StackIndex
+			b.GraphiteStackPosition = e.StackPosition
 		}
 	}
 
