@@ -134,6 +134,8 @@ func (gui *Gui) resetHelpersAndControllers() {
 		Graphite:   helpers.NewGraphiteHelper(helperCommon),
 	}
 
+	gui.helpers.WindowArrangement.SetGraphiteHelper(gui.helpers.Graphite)
+
 	gui.CustomCommandsClient = custom_commands.NewClient(
 		helperCommon,
 		gui.helpers,

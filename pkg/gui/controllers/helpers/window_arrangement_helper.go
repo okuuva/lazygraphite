@@ -21,6 +21,7 @@ type WindowArrangementHelper struct {
 	windowHelper    *WindowHelper
 	modeHelper      *ModeHelper
 	appStatusHelper *AppStatusHelper
+	graphiteHelper  *GraphiteHelper
 }
 
 func NewWindowArrangementHelper(
@@ -35,6 +36,10 @@ func NewWindowArrangementHelper(
 		modeHelper:      modeHelper,
 		appStatusHelper: appStatusHelper,
 	}
+}
+
+func (self *WindowArrangementHelper) SetGraphiteHelper(h *GraphiteHelper) {
+	self.graphiteHelper = h
 }
 
 type WindowArrangementArgs struct {
@@ -72,6 +77,8 @@ type WindowArrangementArgs struct {
 	InSearchPrompt bool
 	// One of '' (not searching), 'Search: ', and 'Filter: '
 	SearchPrefix string
+	// Whether the command log is temporarily enlarged for graphite output
+	EnlargedCommandLog bool
 }
 
 func (self *WindowArrangementHelper) GetWindowDimensions(informationStr string, appStatus string) map[string]boxlayout.Dimensions {
@@ -100,6 +107,7 @@ func (self *WindowArrangementHelper) GetWindowDimensions(informationStr string, 
 		IsAnyModeActive:   self.modeHelper.IsAnyModeActive(),
 		InSearchPrompt:    repoState.InSearchPrompt(),
 		SearchPrefix:      searchPrefix,
+		EnlargedCommandLog: self.graphiteHelper != nil && self.graphiteHelper.EnlargedCommandLog.Load(),
 	}
 
 	return GetWindowDimensions(args)
@@ -395,6 +403,11 @@ func getExtrasWindowSize(args WindowArrangementArgs) int {
 		baseSize = 1000 // my way of saying 'fill the available space'
 	} else if args.Height < 40 {
 		baseSize = 1
+	} else if args.EnlargedCommandLog {
+		baseSize = 1000
+	} else if args.UserConfig.Graphite.Enabled && args.UserConfig.Graphite.CommandLogSize > 0 &&
+		args.CurrentSideWindow == "branches" {
+		baseSize = args.UserConfig.Graphite.CommandLogSize
 	} else {
 		baseSize = args.UserConfig.Gui.CommandLogSize
 	}

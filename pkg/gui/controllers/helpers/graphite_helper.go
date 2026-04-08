@@ -3,6 +3,8 @@ package helpers
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/jesseduffield/gocui"
 	"github.com/jesseduffield/lazygit/pkg/commands/models"
@@ -13,6 +15,9 @@ import (
 
 type GraphiteHelper struct {
 	c *HelperCommon
+
+	// When true, the command log panel is enlarged to show gt output.
+	EnlargedCommandLog atomic.Bool
 }
 
 func NewGraphiteHelper(c *HelperCommon) *GraphiteHelper {
@@ -22,15 +27,38 @@ func NewGraphiteHelper(c *HelperCommon) *GraphiteHelper {
 }
 
 // RunAndStream runs a gt command with output streamed to the Command Log panel
-// instead of suspending the TUI for a subprocess terminal.
+// instead of suspending the TUI for a subprocess terminal. When commandLogTimeout
+// is non-zero, the command log is enlarged during execution and for the configured
+// number of seconds after completion so the user can read the output.
 func (self *GraphiteHelper) RunAndStream(cmdObj *oscommands.CmdObj, waitingStatus string) error {
+	timeout := self.c.UserConfig().Graphite.CommandLogTimeout
+	enlarge := timeout > 0
+
+	if enlarge {
+		self.c.State().SetShowExtrasWindow(true)
+		self.EnlargedCommandLog.Store(true)
+	}
+
 	return self.c.WithWaitingStatus(waitingStatus, func(gocui.Task) error {
-		if err := cmdObj.StreamOutput().Run(); err != nil {
+		err := cmdObj.StreamOutput().Run()
+
+		self.c.Refresh(types.RefreshOptions{Mode: types.ASYNC})
+
+		if enlarge {
+			time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+				self.EnlargedCommandLog.Store(false)
+				self.c.OnUIThread(func() error {
+					self.c.GocuiGui().Update(func(*gocui.Gui) error { return nil })
+					return nil
+				})
+			})
+		}
+
+		if err != nil {
 			return fmt.Errorf(
 				self.c.Tr.GitCommandFailed, self.c.UserConfig().Keybinding.Universal.ExtrasMenu,
 			)
 		}
-		self.c.Refresh(types.RefreshOptions{Mode: types.ASYNC})
 		return nil
 	})
 }

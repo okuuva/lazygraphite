@@ -51,6 +51,12 @@ type GraphiteConfig struct {
 	// - "gt": keys match gt CLI command names (m=modify, g=get)
 	// Individual keys can be overridden via keybinding.graphite regardless of preset.
 	Keymap string `yaml:"keymap" jsonschema:"enum=default,enum=gt"`
+	// Size of the command log panel when Graphite is enabled.
+	// If 0, falls back to gui.commandLogSize.
+	CommandLogSize int `yaml:"commandLogSize" jsonschema:"minimum=0"`
+	// How many seconds to keep the command log enlarged after a gt command
+	// finishes, so you can read the output. 0 disables the enlargement.
+	CommandLogTimeout int `yaml:"commandLogTimeout" jsonschema:"minimum=0,maximum=10"`
 }
 
 type RefresherConfig struct {
@@ -1115,7 +1121,9 @@ func GetDefaultConfig() *UserConfig {
 			Graphite: KeybindingGraphiteConfig{},
 		},
 		Graphite: GraphiteConfig{
-			Keymap: "default",
+			Keymap:            "default",
+			CommandLogSize:    20,
+			CommandLogTimeout: 3,
 		},
 	}
 }
