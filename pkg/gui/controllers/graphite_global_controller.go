@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"strings"
+
 	"github.com/jesseduffield/lazygit/pkg/gui/types"
 )
 
@@ -78,12 +80,73 @@ func (self *GraphiteGlobalController) undo() error {
 
 func (self *GraphiteGlobalController) top() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteTop)
-	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.TopCmdObj(), "Going to top...")
+
+	// Find all leaf (top) branches reachable from the current branch.
+	// If there are multiple, let the user pick which top to go to.
+	currentBranch := self.c.Model().CheckedOutBranch
+	leaves := self.c.Git().Graphite.LeafBranches(currentBranch)
+	if len(leaves) <= 1 {
+		return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.TopCmdObj(), "Going to top...")
+	}
+
+	menuItems := make([]*types.MenuItem, len(leaves))
+	for i, leaf := range leaves {
+		menuItems[i] = &types.MenuItem{
+			Label: leaf,
+			OnPress: func() error {
+				return self.c.Helpers().Graphite.RunAndStream(
+					self.c.Git().Graphite.CheckoutCmdObj(leaf), "Going to top...")
+			},
+		}
+	}
+
+	return self.c.Menu(types.CreateMenuOptions{
+		Title: self.c.Tr.GraphiteSelectTop,
+		Items: menuItems,
+	})
 }
 
 func (self *GraphiteGlobalController) up() error {
 	self.c.LogAction(self.c.Tr.Actions.GraphiteUp)
-	return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.UpCmdObj(), "Going up...")
+
+	// Check if there are multiple children; if so, prompt the user to pick one
+	output, err := self.c.Git().Graphite.ChildrenCmdObj().RunWithOutput()
+	if err != nil {
+		// If gt children fails, fall back to regular gt up
+		return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.UpCmdObj(), "Going up...")
+	}
+
+	children := filterEmpty(strings.Split(output, "\n"))
+	if len(children) <= 1 {
+		return self.c.Helpers().Graphite.RunAndStream(self.c.Git().Graphite.UpCmdObj(), "Going up...")
+	}
+
+	menuItems := make([]*types.MenuItem, len(children))
+	for i, child := range children {
+		menuItems[i] = &types.MenuItem{
+			Label: child,
+			OnPress: func() error {
+				return self.c.Helpers().Graphite.RunAndStream(
+					self.c.Git().Graphite.UpToCmdObj(child), "Going up...")
+			},
+		}
+	}
+
+	return self.c.Menu(types.CreateMenuOptions{
+		Title: self.c.Tr.GraphiteSelectChild,
+		Items: menuItems,
+	})
+}
+
+func filterEmpty(lines []string) []string {
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 func (self *GraphiteGlobalController) down() error {

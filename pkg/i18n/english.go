@@ -611,6 +611,8 @@ type TranslationSet struct {
 	GraphiteTop                           string
 	GraphiteUp                            string
 	GraphiteDown                          string
+	GraphiteSelectChild                   string
+	GraphiteSelectTop                     string
 	GraphiteNotEnabled                    string
 	GraphiteNoBranchAtCommit              string
 	NewBranchNamePrompt                   string
@@ -1766,6 +1768,8 @@ func EnglishTranslationSet() *TranslationSet {
 		GraphiteTop:                    "Checkout top of stack (gt top)",
 		GraphiteUp:                     "Go up one level in stack (gt up)",
 		GraphiteDown:                   "Go down one level in stack (gt down)",
+		GraphiteSelectChild:           "Which child branch?",
+		GraphiteSelectTop:             "Which top branch?",
 		GraphiteNotEnabled:             "Graphite integration is not enabled or 'gt' is not installed",
 		GraphiteNoBranchAtCommit:       "No branch points directly to this commit. This command only works for commits that are branch tips in Graphite.",
 		NewGitFlowBranchPrompt:         "New {{.branchType}} name:",
